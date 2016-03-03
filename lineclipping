@@ -1,0 +1,599 @@
+//============================================================================
+// Name        : S120228513.cpp
+// Author      : 
+// Version     :
+// Copyright   : Your copyright notice
+// Description : Hello World in C++, Ansi-style
+//============================================================================
+#include<bits/stdc++/h>
+#incldue<GL/gl.h>
+#include<Gl/glu.h>
+#include <GL/glut.h>
+#define H 650
+#define W 1245
+
+using namespace std;
+
+int input[20][2];			// matrix to input points
+int index,i;				// index to maintain counts of points & i for looping operations
+
+int xmin=100,ymin=100,xmax=300,ymax=300;	 		// viewport size for input
+int xvmin=500,yvmin=100,xvmax=900,yvmax=500; 		// viewport size for output
+
+const int LEFT = 1; 		// outcode for left clipping
+const int RIGHT = 2; 		// outcode for right clipping
+const int BOTTOM = 4; 		// outcode for bottom clipping
+const int TOP = 8; 			// outcode for top clipping
+
+char text1[] = " Line Clipping Using Cohen Sutherland Outcode Method ";
+char text2[] = " On Left Click & Press : INPUT 1st Point ";
+char text6[] = " On Left Click & Release : INPUT 2nd Point";
+char text3[] = " On Right Click : LINE ";
+char text4[] = " On Middle Click : OUTPUT ";
+char text5[] = " For Clear : 'c' ";
+void *font[3] = {GLUT_BITMAP_TIMES_ROMAN_24,
+				GLUT_BITMAP_9_BY_15,
+				GLUT_BITMAP_HELVETICA_18};
+
+void output(int x, int y, char str[])	// display string on screen
+{
+	glColor3f(0.0,0.0,0.0);
+	glRasterPos2f(x,y);
+	while(*str)
+	glutBitmapCharacter(font[0],*str++);
+}
+
+void pixel(int x, int y,void *font)		// display coordinates on screen
+{
+	int i;
+	char c[4],d[4];
+	sprintf(c,"%d",x);
+	sprintf(d,"%d",y);
+
+	glColor3f(50.0,0.0,50.0);
+	glRasterPos2f(x,y);
+
+	glutBitmapCharacter(font,'{');
+	for(i=0;i<4;i++)
+		glutBitmapCharacter(font,c[i]);
+
+	glutBitmapCharacter(font,',');
+	for(i=0;i<4;i++)
+		glutBitmapCharacter(font,d[i]);
+
+	glutBitmapCharacter(font,'}');
+	glFlush();
+}
+void init()
+{
+	glClearColor(0.0,1.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluOrtho2D(0,W,0,H);
+}
+void drawPoint(int x, int y)
+{
+	glPointSize(5.0);
+	glColor3f(0.0,0.0,1.0);
+	glBegin(GL_POINTS);
+	glVertex2d(x,y);
+	glEnd();
+	glFlush();
+}
+void drawLine()
+{
+	glLineWidth(3.0);
+	glColor3f(1.0,0.0,1.0);
+	glBegin(GL_LINES);
+	for(i=0;i<index;i += 2)
+	{
+		glVertex2d(input[i][0],input[i][1]);
+		glVertex2d(input[i+1][0],input[i+1][1]);
+	}
+	glEnd();
+	glFlush();
+}
+int outcode(int x, int y)
+{
+	int code = 0;
+
+	if(y > ymax)		// upper to window
+		code |= TOP;
+
+	if(y < ymin)		// lower to window
+			code |= BOTTOM;
+
+	if(x > xmax)		// right to window
+			code |= RIGHT;
+
+	if(x < xmin)		// left to window
+			code |= LEFT;
+
+	return code;
+}
+void cohenSutherland(int x0, int y0, int x1, int y1)
+{
+	int out,c0,c1;
+	int done=0,accept=0;
+	c0 = outcode(x0,y0);
+	c1 = outcode(x1,y1);
+	cout<<"\n\n Before Clipping Points ";
+	cout<<"\n X0 : "<<x0<<" , Y0 : "<<y0;
+	cout<<"\n X1 : "<<x1<<" , Y1 : "<<y1;
+	cout<<"\n Before Clipping Outcodes ";
+	cout<<"\n c0 : "<<c0<<" , c1 : "<<c1;
+
+	do
+	{
+		if(!(c0|c1))		// totaly inside window accept it
+		{
+			done = 1;
+			accept = 1;
+		}
+		else if(c0 & c1)		// totaly outside window neglect it
+		{
+			done = 1;
+			cout<<"\n\n LINE IS INVISIBLE  ";
+			cout<<"\n After Clipping Points ";
+			cout<<"\n X0 : "<<x0<<" , Y0 : "<<y0;
+			cout<<"\n X1 : "<<x1<<" , Y1 : "<<y1;
+			cout<<"\n After Clipping Outcodes";
+			cout<<"\n c0 : "<<c0<<" , c1 : "<<c1;
+		}
+		else				// partially inside window start clipping
+		{
+			int x,y;
+			out = c0 ? c0 : c1;
+
+			if(out & TOP)			// TOP clip
+			{
+				x = x0 + (x1 - x0)*(ymax - y0)/(y1 - y0);
+				y = ymax;
+			}
+			else if(out & BOTTOM)	//BOTTOM clip
+			{
+				x = x0 + (x1 - x0)*(ymin - y0)/(y1 - y0);
+				y = ymin;
+			}
+			else if(out & RIGHT)	// RIGHT clip
+			{
+				y = y0 + (y1 - y0)*(xmax - x0)/(x1 - x0);
+				x = xmax;
+			}
+			else					// LEFT clip
+			{
+				y = y0 + (y1 - y0)*(xmin - x0)/(x1 - x0);
+				x = xmin;
+			}
+
+			if(out == c0)			// assigning new codes
+			{
+				x0 = x;
+				y0 = y;
+				c0 = outcode(x0,y0);
+			}
+			else
+			{
+				x1 = x;
+				y1 = y;
+				c1 = outcode(x1,y1);
+			}
+		}
+	}while(!done);
+
+	if(accept)	// dispaly line after clipping
+	{
+		int sx = (xvmax - xvmin)/(xmax - xmin);		// scaling in x direction
+		int sy = (yvmax - yvmin)/(ymax - ymin);		// scaling in y direction
+		int vx0 = xvmin + (x0 - xmin)*sx;			// evaluting output coordinates
+		int vy0 = yvmin + (y0 - ymin)*sy;
+		int vx1 = xvmin + (x1 - xmin)*sx;
+		int vy1 = yvmin + (y1 - ymin)*sy;
+
+		glLineWidth(5.0);			// to increase width of line
+		glColor3f(1.0,0.0,0.0);
+		glBegin(GL_LINES);			// displaying output line
+		glVertex2d(vx0,vy0);
+		glVertex2d(vx1,vy1);
+		glEnd();
+		pixel(vx0,vy0,font[2]);		// displaying output coordinates
+		pixel(vx1,vy1,font[2]);
+
+		glColor3f(0.0,0.0,1.0);
+		glBegin(GL_LINE_LOOP);		//	OUTPUT viewport
+		glVertex2d(xvmin,yvmin);
+		glVertex2d(xvmax,yvmin);
+		glVertex2d(xvmax,yvmax);
+		glVertex2d(xvmin,yvmax);
+		glEnd();
+		glFlush();
+
+		cout<<"\n\n LINE IS VISIBLE  ";
+		cout<<"\n After Clipping Points ";
+		cout<<"\n X0 : "<<x0<<" , Y0 : "<<y0;
+		cout<<"\n X1 : "<<x1<<" , Y1 : "<<y1;
+		cout<<"\n After Clipping Outcodes";
+		cout<<"\n c0 : "<<c0<<" , c1 : "<<c1;
+
+		cout<<"\n\n OUTPUT WINDOW  ";
+		cout<<"\n\n After Clipping Points ";
+		cout<<"\n VX0 : "<<vx0<<" , VY0 : "<<vy0;
+		cout<<"\n VX1 : "<<vx1<<" , VY1 : "<<vy1;
+	}
+}
+void display()
+{
+	output(W/2-300,H-30,text1);
+	output(50,H-90,text2);
+	output(50,H-120,text6);
+	output(50,H-150,text3);
+	output(50,H-180,text4);
+	output(50,H-210,text5);
+
+	glLineWidth(3.0);
+	glColor3f(1.0,0.0,0.0);
+	glBegin(GL_LINE_LOOP);				//	INPUT viewport
+	glVertex2d(xmin,ymin);
+	glVertex2d(xmax,ymin);
+	glVertex2d(xmax,ymax);
+	glVertex2d(xmin,ymax);
+	glEnd();
+	glFlush();
+	cout<<"\n INPUTED COORDINATES ";
+}
+void mouse(int button, int state, int x, int y)
+{
+	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	{
+		input[index][0] = x;
+		input[index++][1] =H-y;
+		pixel(x,H-y,font[1]);
+		drawPoint(x,H-y);
+		cout<<"\n X : "<<x<<" , Y : "<<H-y;
+	}
+	if(button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+	{
+		input[index][0] = x;
+		input[index++][1] =H-y;
+		pixel(x,H-y,font[1]);
+		drawPoint(x,H-y);
+		cout<<"\n X : "<<x<<" , Y : "<<H-y;
+	}
+	if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
+		drawLine();
+	if(button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN)
+	{
+		for(i=0;i<index;i += 2)
+			cohenSutherland(input[i][0],input[i][1],input[i+1][0],input[i+1][1]);
+	}
+}
+void keyboard(unsigned char key, int x, int y)
+{
+	if(key == 27)			// for exiting program
+		exit(0);
+	if(key == 'c')			// for clearing buffer
+	{
+		glClear(GL_COLOR_BUFFER_BIT);
+		index = 0;
+	}
+	glFlush();
+	display();
+}
+int main(int argc, char *argv[])
+{
+	glutInit(&argc,argv);
+	glutInitWindowPosition(0,0);
+	glutInitWindowSize(W,H);
+	glutCreateWindow("Line Clipping");
+	init();
+	glutDisplayFunc(display);
+	glutMouseFunc(mouse);
+	glutKeyboardFunc(keyboard);
+	glutMainLoop();
+	return 0;
+}
+/*
+	FINAL OUTPUT :
+
+ INPUTED COORDINATES
+ X : 222 , Y : 201
+ X : 196 , Y : 366
+ X : 161 , Y : 251
+ X : 59 , Y : 284
+ X : 138 , Y : 148
+ X : 56 , Y : 172
+ X : 226 , Y : 67
+ X : 319 , Y : 163
+
+ Before Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 196 , Y1 : 366
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 8
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 207 , Y1 : 300
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 744 , VY0 : 302
+ VX1 : 714 , VY1 : 500
+
+ Before Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 59 , Y1 : 284
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 100 , Y1 : 270
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 622 , VY0 : 402
+ VX1 : 500 , VY1 : 440
+
+ Before Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 56 , Y1 : 172
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 100 , Y1 : 159
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 576 , VY0 : 196
+ VX1 : 500 , VY1 : 218
+
+ Before Clipping Points
+ X0 : 226 , Y0 : 67
+ X1 : 319 , Y1 : 163
+ Before Clipping Outcodes
+ c0 : 4 , c1 : 2
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 257 , Y0 : 100
+ X1 : 300 , Y1 : 143
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 814 , VY0 : 100
+ VX1 : 900 , VY1 : 186
+ X : 248 , Y : 150
+ X : 191 , Y : 198
+
+ Before Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 196 , Y1 : 366
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 8
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 207 , Y1 : 300
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 744 , VY0 : 302
+ VX1 : 714 , VY1 : 500
+
+ Before Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 59 , Y1 : 284
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 100 , Y1 : 270
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 622 , VY0 : 402
+ VX1 : 500 , VY1 : 440
+
+ Before Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 56 , Y1 : 172
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 100 , Y1 : 159
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 576 , VY0 : 196
+ VX1 : 500 , VY1 : 218
+
+ Before Clipping Points
+ X0 : 226 , Y0 : 67
+ X1 : 319 , Y1 : 163
+ Before Clipping Outcodes
+ c0 : 4 , c1 : 2
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 257 , Y0 : 100
+ X1 : 300 , Y1 : 143
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 814 , VY0 : 100
+ VX1 : 900 , VY1 : 186
+
+ Before Clipping Points
+ X0 : 248 , Y0 : 150
+ X1 : 191 , Y1 : 198
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 248 , Y0 : 150
+ X1 : 191 , Y1 : 198
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 796 , VY0 : 200
+ VX1 : 682 , VY1 : 296
+ X : 118 , Y : 80
+ X : 143 , Y : 130
+
+ Before Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 196 , Y1 : 366
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 8
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 222 , Y0 : 201
+ X1 : 207 , Y1 : 300
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 744 , VY0 : 302
+ VX1 : 714 , VY1 : 500
+
+ Before Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 59 , Y1 : 284
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 161 , Y0 : 251
+ X1 : 100 , Y1 : 270
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 622 , VY0 : 402
+ VX1 : 500 , VY1 : 440
+
+ Before Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 56 , Y1 : 172
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 1
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 138 , Y0 : 148
+ X1 : 100 , Y1 : 159
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 576 , VY0 : 196
+ VX1 : 500 , VY1 : 218
+
+ Before Clipping Points
+ X0 : 226 , Y0 : 67
+ X1 : 319 , Y1 : 163
+ Before Clipping Outcodes
+ c0 : 4 , c1 : 2
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 257 , Y0 : 100
+ X1 : 300 , Y1 : 143
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 814 , VY0 : 100
+ VX1 : 900 , VY1 : 186
+
+ Before Clipping Points
+ X0 : 248 , Y0 : 150
+ X1 : 191 , Y1 : 198
+ Before Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 248 , Y0 : 150
+ X1 : 191 , Y1 : 198
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 796 , VY0 : 200
+ VX1 : 682 , VY1 : 296
+
+ Before Clipping Points
+ X0 : 118 , Y0 : 80
+ X1 : 143 , Y1 : 130
+ Before Clipping Outcodes
+ c0 : 4 , c1 : 0
+
+ LINE IS VISIBLE
+ After Clipping Points
+ X0 : 128 , Y0 : 100
+ X1 : 143 , Y1 : 130
+ After Clipping Outcodes
+ c0 : 0 , c1 : 0
+
+ OUTPUT WINDOW
+
+ After Clipping Points
+ VX0 : 556 , VY0 : 100
+ VX1 : 586 , VY1 : 160
+
+*/
+
